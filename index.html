@@ -1,0 +1,1029 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>플랜팡 — AI 여행일정 자판기</title>
+<link rel="preconnect" href="https://cdn.jsdelivr.net">
+<link href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.css" rel="stylesheet">
+<style>
+:root {
+  --bg: #0a0a0a;
+  --bg2: #111111;
+  --bg3: #1a1a1a;
+  --card: #161616;
+  --border: rgba(255,255,255,0.08);
+  --border2: rgba(255,255,255,0.14);
+  --text: #f0f0f0;
+  --muted: #888;
+  --muted2: #555;
+  --pop: #FFE034;
+  --pop2: #FF6B35;
+  --pop3: #00E5A0;
+  --pop-dark: #c9b000;
+  --r: 14px;
+  --r2: 20px;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html { scroll-behavior: smooth; }
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: 'Pretendard', sans-serif;
+  font-size: 16px;
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+  overflow-x: hidden;
+}
+
+/* ── 노이즈 레이어 */
+body::before {
+  content: '';
+  position: fixed; inset: 0;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.04'/%3E%3C/svg%3E");
+  pointer-events: none; z-index: 0; opacity: 0.4;
+}
+
+/* ── NAV */
+nav {
+  position: fixed; top: 0; left: 0; right: 0; z-index: 100;
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 0 5%;
+  height: 60px;
+  background: rgba(10,10,10,0.85);
+  backdrop-filter: blur(12px);
+  border-bottom: 1px solid var(--border);
+}
+.nav-logo {
+  font-size: 20px; font-weight: 800;
+  letter-spacing: -0.5px;
+}
+.nav-logo span { color: var(--pop); }
+.nav-cta {
+  background: var(--pop);
+  color: #0a0a0a;
+  border: none;
+  border-radius: 40px;
+  padding: 8px 20px;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  font-family: 'Pretendard', sans-serif;
+  text-decoration: none;
+  transition: transform 0.15s, background 0.15s;
+}
+.nav-cta:hover { transform: scale(1.04); background: #ffe84d; }
+
+/* ── HERO */
+.hero {
+  min-height: 100vh;
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+  text-align: center;
+  padding: 100px 5% 60px;
+  position: relative;
+}
+.hero-badge {
+  display: inline-flex; align-items: center; gap: 6px;
+  background: rgba(255,224,52,0.1);
+  border: 1px solid rgba(255,224,52,0.25);
+  border-radius: 40px;
+  padding: 6px 16px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--pop);
+  letter-spacing: 0.5px;
+  margin-bottom: 28px;
+  animation: fadeUp 0.6s ease both;
+}
+.hero-badge::before { content: '✦'; font-size: 10px; }
+
+.hero h1 {
+  font-size: clamp(44px, 8vw, 88px);
+  font-weight: 900;
+  letter-spacing: -3px;
+  line-height: 1.0;
+  margin-bottom: 24px;
+  animation: fadeUp 0.6s 0.1s ease both;
+}
+.hero h1 em {
+  font-style: normal;
+  color: var(--pop);
+  display: inline-block;
+  position: relative;
+}
+.hero h1 em::after {
+  content: '';
+  position: absolute; bottom: 4px; left: 0; right: 0;
+  height: 6px; background: var(--pop2); border-radius: 3px;
+  opacity: 0.5;
+}
+
+.hero-sub {
+  font-size: clamp(16px, 2vw, 20px);
+  color: var(--muted);
+  max-width: 500px;
+  margin: 0 auto 40px;
+  animation: fadeUp 0.6s 0.2s ease both;
+  line-height: 1.7;
+}
+
+.hero-price-pill {
+  display: inline-flex; align-items: center; gap: 10px;
+  background: var(--card);
+  border: 1px solid var(--border2);
+  border-radius: 50px;
+  padding: 12px 24px;
+  font-size: 15px;
+  margin-bottom: 40px;
+  animation: fadeUp 0.6s 0.3s ease both;
+}
+.hero-price-pill .amount {
+  font-size: 22px; font-weight: 800; color: var(--pop);
+}
+.hero-price-pill .desc { color: var(--muted); font-size: 13px; }
+
+.hero-btn {
+  display: inline-flex; align-items: center; gap: 10px;
+  background: var(--pop);
+  color: #0a0a0a;
+  border: none; border-radius: 50px;
+  padding: 18px 40px;
+  font-size: 17px; font-weight: 800;
+  cursor: pointer;
+  font-family: 'Pretendard', sans-serif;
+  text-decoration: none;
+  animation: fadeUp 0.6s 0.35s ease both;
+  transition: transform 0.15s, box-shadow 0.15s;
+  box-shadow: 0 0 0 0 rgba(255,224,52,0.4);
+}
+.hero-btn:hover {
+  transform: translateY(-2px) scale(1.03);
+  box-shadow: 0 8px 32px rgba(255,224,52,0.25);
+}
+
+/* ── 떠다니는 태그들 */
+.float-tags {
+  display: flex; flex-wrap: wrap; justify-content: center; gap: 8px;
+  margin-top: 48px;
+  animation: fadeUp 0.6s 0.5s ease both;
+}
+.float-tag {
+  background: var(--bg3);
+  border: 1px solid var(--border);
+  border-radius: 40px;
+  padding: 6px 14px;
+  font-size: 13px;
+  color: var(--muted);
+}
+
+/* ── HOW IT WORKS */
+.section { padding: 100px 5%; max-width: 1100px; margin: 0 auto; }
+.section-label {
+  font-size: 11px; font-weight: 700; letter-spacing: 2px;
+  color: var(--pop); text-transform: uppercase; margin-bottom: 16px;
+}
+.section-title {
+  font-size: clamp(28px, 4vw, 42px);
+  font-weight: 800; letter-spacing: -1.5px;
+  line-height: 1.2; margin-bottom: 56px;
+}
+.section-title span { color: var(--pop); }
+
+.steps {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 2px;
+  background: var(--border);
+  border-radius: var(--r2);
+  overflow: hidden;
+}
+.step {
+  background: var(--card);
+  padding: 32px 28px;
+  position: relative;
+  transition: background 0.2s;
+}
+.step:hover { background: var(--bg3); }
+.step-num {
+  font-size: 11px; font-weight: 700; color: var(--muted2);
+  letter-spacing: 1px; margin-bottom: 16px;
+}
+.step-icon {
+  font-size: 32px; margin-bottom: 14px; display: block;
+}
+.step h3 {
+  font-size: 16px; font-weight: 700; margin-bottom: 8px;
+  letter-spacing: -0.3px;
+}
+.step p { font-size: 13px; color: var(--muted); line-height: 1.6; }
+.step-arrow {
+  position: absolute; right: -10px; top: 50%;
+  transform: translateY(-50%);
+  background: var(--pop);
+  color: #0a0a0a;
+  width: 20px; height: 20px;
+  border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 10px; font-weight: 800;
+  z-index: 2;
+}
+
+/* ── 폼 섹션 */
+.form-section {
+  padding: 0 5% 100px;
+  max-width: 1100px;
+  margin: 0 auto;
+}
+.form-wrap {
+  background: var(--card);
+  border: 1px solid var(--border2);
+  border-radius: var(--r2);
+  overflow: hidden;
+}
+.form-top {
+  background: linear-gradient(135deg, #1a1a00 0%, #0a0a0a 100%);
+  border-bottom: 1px solid var(--border);
+  padding: 32px 36px;
+  display: flex; align-items: center; justify-content: space-between;
+  flex-wrap: wrap; gap: 12px;
+}
+.form-top-title { font-size: 20px; font-weight: 800; letter-spacing: -0.5px; }
+.form-top-badge {
+  background: var(--pop); color: #0a0a0a;
+  font-size: 13px; font-weight: 800;
+  padding: 6px 16px; border-radius: 40px;
+}
+.form-body { padding: 36px; }
+
+.field { margin-bottom: 28px; }
+.field-label {
+  font-size: 12px; font-weight: 700;
+  color: var(--muted); letter-spacing: 0.8px;
+  text-transform: uppercase; margin-bottom: 12px;
+  display: block;
+}
+
+.chip-grid { display: flex; flex-wrap: wrap; gap: 8px; }
+.chip {
+  padding: 9px 18px;
+  border-radius: 40px;
+  border: 1.5px solid var(--border2);
+  font-size: 13px; font-weight: 500;
+  cursor: pointer;
+  color: var(--muted);
+  background: transparent;
+  transition: all 0.15s;
+  font-family: 'Pretendard', sans-serif;
+  user-select: none;
+}
+.chip:hover { border-color: var(--pop); color: var(--pop); }
+.chip.on {
+  background: var(--pop); border-color: var(--pop);
+  color: #0a0a0a; font-weight: 700;
+}
+
+.style-grid {
+  display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px;
+}
+.style-card {
+  border: 1.5px solid var(--border2);
+  border-radius: var(--r);
+  padding: 16px;
+  cursor: pointer;
+  transition: all 0.15s;
+  background: var(--bg3);
+}
+.style-card:hover { border-color: var(--pop); }
+.style-card.on { border-color: var(--pop); background: rgba(255,224,52,0.06); }
+.style-card .si { font-size: 22px; margin-bottom: 6px; }
+.style-card .sn { font-size: 14px; font-weight: 700; color: var(--text); }
+.style-card .sd { font-size: 12px; color: var(--muted); margin-top: 2px; }
+
+.nights-wrap {
+  display: flex; align-items: center; gap: 16px;
+}
+.nights-wrap input[type=range] {
+  flex: 1; -webkit-appearance: none;
+  height: 4px; border-radius: 2px;
+  background: var(--border2); outline: none;
+  cursor: pointer;
+}
+.nights-wrap input[type=range]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 20px; height: 20px; border-radius: 50%;
+  background: var(--pop); cursor: pointer;
+  border: 3px solid var(--bg);
+  box-shadow: 0 0 0 2px var(--pop);
+}
+.nights-val {
+  font-size: 18px; font-weight: 800; color: var(--pop);
+  min-width: 70px; text-align: right;
+}
+
+.memo-input {
+  width: 100%;
+  background: var(--bg3);
+  border: 1.5px solid var(--border2);
+  border-radius: var(--r);
+  padding: 14px 16px;
+  font-size: 14px; color: var(--text);
+  font-family: 'Pretendard', sans-serif;
+  resize: none; height: 80px;
+  outline: none;
+  transition: border-color 0.15s;
+}
+.memo-input:focus { border-color: var(--pop); }
+.memo-input::placeholder { color: var(--muted2); }
+
+.form-divider {
+  height: 1px; background: var(--border);
+  margin: 0 36px 32px;
+}
+
+.form-bottom { padding: 0 36px 36px; }
+.email-row { display: flex; gap: 10px; flex-wrap: wrap; }
+.email-input {
+  flex: 1; min-width: 200px;
+  background: var(--bg3);
+  border: 1.5px solid var(--border2);
+  border-radius: var(--r);
+  padding: 14px 16px;
+  font-size: 14px; color: var(--text);
+  font-family: 'Pretendard', sans-serif;
+  outline: none; transition: border-color 0.15s;
+}
+.email-input:focus { border-color: var(--pop); }
+.email-input::placeholder { color: var(--muted2); }
+
+.price-calc {
+  display: flex; align-items: center; gap: 8px;
+  margin-top: 12px;
+  padding: 10px 16px;
+  background: rgba(255,224,52,0.06);
+  border: 1px solid rgba(255,224,52,0.2);
+  border-radius: var(--r);
+  width: fit-content;
+}
+.pc-formula { font-size: 13px; color: var(--muted); }
+.pc-eq { font-size: 13px; color: var(--muted2); }
+.pc-total { font-size: 16px; font-weight: 800; color: var(--pop); }
+
+.pay-guide {
+  display: flex; align-items: flex-start; gap: 10px;
+  background: rgba(255,224,52,0.06);
+  border: 1px solid rgba(255,224,52,0.2);
+  border-radius: var(--r);
+  padding: 12px 16px;
+  margin-top: 10px;
+}
+.pay-guide-icon { font-size: 16px; flex-shrink: 0; margin-top: 1px; }
+.pay-guide-text { font-size: 13px; color: var(--muted); line-height: 1.6; }
+.pay-guide-text strong { color: var(--pop); font-weight: 700; font-size: 14px; }
+.pay-guide-text span { font-size: 11px; color: var(--muted2); }
+
+.pay-btn {
+  width: 100%;
+  background: var(--pop);
+  color: #0a0a0a;
+  border: none; border-radius: var(--r);
+  padding: 18px;
+  font-size: 17px; font-weight: 800;
+  cursor: pointer;
+  font-family: 'Pretendard', sans-serif;
+  margin-top: 14px;
+  display: flex; align-items: center; justify-content: center; gap: 10px;
+  transition: transform 0.15s, box-shadow 0.15s;
+  letter-spacing: -0.3px;
+}
+.pay-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 32px rgba(255,224,52,0.25);
+}
+.pay-btn:disabled {
+  background: var(--bg3); color: var(--muted2); cursor: not-allowed;
+  transform: none; box-shadow: none;
+}
+.pay-notice {
+  text-align: center; font-size: 12px; color: var(--muted2);
+  margin-top: 12px; line-height: 1.6;
+}
+
+/* ── 샘플 PDF 미리보기 */
+.sample-section {
+  padding: 0 5% 100px;
+  max-width: 1100px;
+  margin: 0 auto;
+}
+.sample-wrap {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 2px;
+  background: var(--border);
+  border-radius: var(--r2); overflow: hidden;
+}
+.sample-left {
+  background: var(--card); padding: 40px 36px;
+}
+.sample-left h3 {
+  font-size: 22px; font-weight: 800;
+  letter-spacing: -0.8px; margin-bottom: 12px;
+}
+.sample-left p { font-size: 14px; color: var(--muted); margin-bottom: 24px; line-height: 1.7; }
+.sample-features { display: flex; flex-direction: column; gap: 10px; }
+.sf {
+  display: flex; align-items: flex-start; gap: 10px;
+  font-size: 14px; color: var(--muted);
+}
+.sf-dot {
+  width: 6px; height: 6px; border-radius: 50%;
+  background: var(--pop); margin-top: 7px; flex-shrink: 0;
+}
+.sf strong { color: var(--text); font-weight: 600; }
+
+.sample-right {
+  background: #f5f0e8;
+  padding: 32px 28px;
+  position: relative;
+}
+.pdf-mock {
+  background: white;
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 8px 40px rgba(0,0,0,0.15);
+  font-family: 'Pretendard', sans-serif;
+}
+.pdf-header {
+  background: #1a1a1a;
+  padding: 20px 24px;
+  display: flex; align-items: center; justify-content: space-between;
+}
+.pdf-logo { color: #FFE034; font-size: 14px; font-weight: 800; }
+.pdf-title-area { text-align: right; }
+.pdf-title { color: white; font-size: 13px; font-weight: 700; }
+.pdf-sub { color: rgba(255,255,255,0.5); font-size: 11px; margin-top: 2px; }
+.pdf-body { padding: 20px 24px; }
+.pdf-dest-row {
+  display: flex; align-items: center; gap: 12px; margin-bottom: 18px;
+}
+.pdf-dest-badge {
+  background: #FFE034; color: #0a0a0a;
+  font-size: 11px; font-weight: 800;
+  padding: 4px 12px; border-radius: 20px;
+}
+.pdf-dest-text { font-size: 13px; color: #555; }
+.pdf-day { margin-bottom: 14px; }
+.pdf-day-title {
+  font-size: 11px; font-weight: 800; color: #FFE034;
+  background: #1a1a1a; padding: 4px 10px; border-radius: 4px;
+  display: inline-block; margin-bottom: 8px;
+  letter-spacing: 0.5px;
+}
+.pdf-item {
+  display: flex; gap: 8px; margin-bottom: 6px; align-items: flex-start;
+}
+.pdf-time { font-size: 10px; color: #aaa; min-width: 36px; margin-top: 2px; }
+.pdf-act { font-size: 12px; color: #333; line-height: 1.5; }
+.pdf-act strong { font-weight: 700; color: #1a1a1a; }
+.pdf-tip {
+  background: #fffbf0; border-left: 3px solid #FFE034;
+  padding: 10px 14px; margin-top: 16px; border-radius: 0 6px 6px 0;
+}
+.pdf-tip-title { font-size: 10px; font-weight: 800; color: #c9b000; margin-bottom: 4px; }
+.pdf-tip-text { font-size: 11px; color: #666; line-height: 1.5; }
+
+/* ── 후기/소셜프루프 */
+.reviews-section {
+  padding: 0 5% 100px;
+  max-width: 1100px;
+  margin: 0 auto;
+}
+.reviews-grid {
+  display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px;
+}
+.review-card {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--r2); padding: 24px;
+  transition: border-color 0.2s;
+}
+.review-card:hover { border-color: var(--border2); }
+.review-stars { color: var(--pop); font-size: 13px; margin-bottom: 12px; }
+.review-text { font-size: 14px; color: var(--muted); line-height: 1.7; margin-bottom: 16px; }
+.review-author { font-size: 13px; font-weight: 700; color: var(--text); }
+.review-meta { font-size: 12px; color: var(--muted2); margin-top: 2px; }
+
+/* ── FAQ */
+.faq-section {
+  padding: 0 5% 100px;
+  max-width: 700px;
+  margin: 0 auto;
+}
+.faq-item {
+  border-bottom: 1px solid var(--border);
+  padding: 20px 0;
+  cursor: pointer;
+}
+.faq-q {
+  font-size: 15px; font-weight: 700; display: flex;
+  justify-content: space-between; align-items: center;
+  gap: 12px;
+}
+.faq-icon {
+  color: var(--pop); font-size: 18px; flex-shrink: 0;
+  transition: transform 0.2s;
+}
+.faq-a {
+  font-size: 14px; color: var(--muted);
+  margin-top: 12px; line-height: 1.7;
+  display: none;
+}
+.faq-item.open .faq-icon { transform: rotate(45deg); }
+.faq-item.open .faq-a { display: block; }
+
+/* ── FOOTER CTA */
+.footer-cta {
+  padding: 80px 5%;
+  text-align: center;
+  border-top: 1px solid var(--border);
+}
+.footer-cta h2 {
+  font-size: clamp(28px, 5vw, 52px);
+  font-weight: 900; letter-spacing: -2px;
+  margin-bottom: 16px;
+}
+.footer-cta h2 span { color: var(--pop); }
+.footer-cta p { color: var(--muted); margin-bottom: 32px; font-size: 15px; }
+
+footer {
+  padding: 24px 5%;
+  border-top: 1px solid var(--border);
+  display: flex; align-items: center; justify-content: space-between;
+  flex-wrap: wrap; gap: 8px;
+  font-size: 12px; color: var(--muted2);
+}
+.footer-logo { font-weight: 800; color: var(--pop); }
+
+/* ── ANIMATIONS */
+@keyframes fadeUp {
+  from { opacity: 0; transform: translateY(20px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.reveal {
+  opacity: 0; transform: translateY(24px);
+  transition: opacity 0.6s ease, transform 0.6s ease;
+}
+.reveal.visible { opacity: 1; transform: none; }
+
+/* ── RESPONSIVE */
+@media (max-width: 720px) {
+  .sample-wrap { grid-template-columns: 1fr; }
+  .reviews-grid { grid-template-columns: 1fr; }
+  .style-grid { grid-template-columns: 1fr; }
+  .form-top { padding: 24px; }
+  .form-body { padding: 24px; }
+  .form-bottom { padding: 0 24px 24px; }
+  .form-divider { margin: 0 24px 24px; }
+  nav { padding: 0 4%; }
+  .hero h1 { letter-spacing: -2px; }
+  .step-arrow { display: none; }
+}
+</style>
+</head>
+<body>
+
+<nav>
+  <div class="nav-logo">플랜<span>팡</span></div>
+  <a href="#form" class="nav-cta">일정 뽑기 →</a>
+</nav>
+
+<!-- HERO -->
+<section class="hero">
+  <div class="hero-badge">AI 여행일정 자판기 · 단 60초</div>
+  <h1>여행 계획,<br><em>팡!</em> 뽑아드림</h1>
+  <p class="hero-sub">목적지 고르고 버튼 하나 누르면<br>AI가 완성된 여행 일정 PDF를 즉석에서 만들어줘요</p>
+  <div class="hero-price-pill">
+    <span class="desc">하루</span>
+    <span class="amount">₩2,000</span>
+    <span style="color:var(--border2)">|</span>
+    <span class="desc">5일이면 딱 ₩10,000</span>
+  </div>
+  <a href="#form" class="hero-btn">🎰 지금 일정 뽑기</a>
+  <div class="float-tags">
+    <span class="float-tag">🌴 발리 4박5일</span>
+    <span class="float-tag">🗼 도쿄 커플여행</span>
+    <span class="float-tag">🏯 방콕 맛집탐방</span>
+    <span class="float-tag">🗺 파리 7일</span>
+    <span class="float-tag">🌊 코타키나발루</span>
+    <span class="float-tag">🍊 제주 힐링</span>
+  </div>
+</section>
+
+<!-- HOW IT WORKS -->
+<section class="section reveal">
+  <div class="section-label">How it works</div>
+  <div class="section-title">세 단계면<br><span>끝</span>이에요</div>
+  <div class="steps">
+    <div class="step">
+      <div class="step-num">01</div>
+      <span class="step-icon">🗺</span>
+      <h3>어디 갈지만 골라요</h3>
+      <p>여행지, 기간, 스타일, 인원만 체크하면 돼요. 1분도 안 걸려요.</p>
+      <div class="step-arrow">→</div>
+    </div>
+    <div class="step">
+      <div class="step-num">02</div>
+      <span class="step-icon">💳</span>
+      <h3>일정 비용 결제</h3>
+      <p>일수에 따라 자동 계산. 토스페이·카카오페이·카드 모두 가능.</p>
+      <div class="step-arrow">→</div>
+    </div>
+    <div class="step">
+      <div class="step-num">03</div>
+      <span class="step-icon">🎰</span>
+      <h3>AI가 일정 생성</h3>
+      <p>결제 완료 즉시 AI가 나만을 위한 일정을 만들어요.</p>
+      <div class="step-arrow">→</div>
+    </div>
+    <div class="step">
+      <div class="step-num">04</div>
+      <span class="step-icon">📄</span>
+      <h3>PDF 즉시 다운로드</h3>
+      <p>예쁘게 정리된 PDF 일정표. 바로 저장하고 여행 떠나요.</p>
+    </div>
+  </div>
+</section>
+
+<!-- FORM -->
+<section class="form-section reveal" id="form">
+  <div class="form-wrap">
+    <div class="form-top">
+      <div class="form-top-title">✈ 나의 여행 정보 입력</div>
+      <div class="form-top-badge" id="form-badge">₩10,000 · 즉시 발급</div>
+    </div>
+    <div class="form-body">
+
+      <div class="field">
+        <label class="field-label">🌍 어디로 가요?</label>
+        <div class="chip-grid" id="continent-group">
+          <button class="chip" data-val="동남아">🌴 동남아</button>
+          <button class="chip" data-val="동아시아">🗼 동아시아</button>
+          <button class="chip" data-val="유럽">🗺 유럽</button>
+        </div>
+        <div id="city-wrap" style="display:none; margin-top:12px;">
+          <div style="font-size:11px; color:var(--muted2); margin-bottom:8px; letter-spacing:0.3px;">도시를 골라주세요</div>
+          <div class="chip-grid" id="dest-group"></div>
+        </div>
+      </div>
+
+      <div class="field">
+        <label class="field-label">📅 며칠 일정이에요?</label>
+        <div class="nights-wrap">
+          <input type="range" id="nights" min="1" max="15" value="5" step="1">
+          <span class="nights-val" id="nights-display">5일</span>
+        </div>
+        <div class="price-calc" id="price-calc">
+          <span class="pc-formula">5일 × ₩2,000</span>
+          <span class="pc-eq">=</span>
+          <span class="pc-total" id="price-total">₩10,000</span>
+        </div>
+      </div>
+
+      <div class="field">
+        <label class="field-label">✨ 여행 스타일</label>
+        <div class="style-grid" id="style-group">
+          <div class="style-card" data-val="힐링/휴양">
+            <div class="si">🧘</div>
+            <div class="sn">힐링 / 휴양</div>
+            <div class="sd">느긋하게 쉬는 여행</div>
+          </div>
+          <div class="style-card" data-val="액티비티">
+            <div class="si">🤿</div>
+            <div class="sn">액티비티</div>
+            <div class="sd">스노클링, 서핑, 래프팅</div>
+          </div>
+          <div class="style-card" data-val="맛집/미식">
+            <div class="si">🍜</div>
+            <div class="sn">맛집 / 미식</div>
+            <div class="sd">로컬 맛집 탐방 중심</div>
+          </div>
+          <div class="style-card" data-val="문화/역사">
+            <div class="si">🏛</div>
+            <div class="sn">문화 / 역사</div>
+            <div class="sd">사원, 박물관, 유적지</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="field">
+        <label class="field-label">👥 누구랑 가요?</label>
+        <div class="chip-grid" id="group-group">
+          <button class="chip" data-val="커플">👫 커플</button>
+          <button class="chip" data-val="가족">👨‍👩‍👧 가족</button>
+          <button class="chip" data-val="친구">👯 친구들</button>
+          <button class="chip" data-val="혼자">🧳 혼자</button>
+        </div>
+      </div>
+
+      <div class="field">
+        <label class="field-label">💬 특별 요청 (선택)</label>
+        <textarea class="memo-input" id="memo" placeholder="예) 8살 아이 동반, 해산물 알레르기, 럭셔리 호텔 원함, 뚜벅이 여행..."></textarea>
+      </div>
+    </div>
+
+    <div class="form-divider"></div>
+
+    <div class="form-bottom">
+      <label class="field-label">📧 PDF 받을 이메일</label>
+      <div class="email-row">
+        <input class="email-input" id="email" type="email" placeholder="여행@gmail.com">
+      </div>
+      <button class="pay-btn" id="pay-btn" onclick="handlePay()">
+        <span id="pay-btn-text">💳 <span id="btn-price">₩10,000</span> 결제하러 가기</span>
+      </button>
+      <div class="pay-guide" id="pay-guide">
+        <div class="pay-guide-icon">👆</div>
+        <div class="pay-guide-text">결제 페이지에서 <strong id="guide-days">수량 5</strong>로 선택해주세요<br><span>1일 = 수량 1 · 5일 = 수량 5</span></div>
+      </div>
+      <p class="pay-notice">결제 완료 즉시 이메일로 PDF가 발송됩니다 · 토스페이 / 카카오페이 / 신용카드 가능</p>
+    </div>
+  </div>
+</section>
+
+<!-- 샘플 PDF -->
+<section class="sample-section reveal" id="sample">
+  <div class="section-label" style="padding:0 0 16px">Sample</div>
+  <div class="section-title" style="margin-bottom:32px">이런 PDF가<br><span>나와요</span></div>
+  <div class="sample-wrap">
+    <div class="sample-left">
+      <h3>딱 필요한 것만<br>깔끔하게</h3>
+      <p>여행 전문가가 직접 짜는 것처럼 일자별로 오전·오후·저녁으로 나눠 구체적인 장소명, 이동 수단, 소요 시간까지 담아드려요.</p>
+      <div class="sample-features">
+        <div class="sf"><div class="sf-dot"></div><div><strong>일자별 상세 일정</strong> — 오전/오후/저녁 시간대별 구성</div></div>
+        <div class="sf"><div class="sf-dot"></div><div><strong>장소명 & 이동 정보</strong> — 구체적인 명칭과 이동 수단</div></div>
+        <div class="sf"><div class="sf-dot"></div><div><strong>현지 꿀팁</strong> — 실제 도움되는 정보만</div></div>
+        <div class="sf"><div class="sf-dot"></div><div><strong>예쁜 PDF 포맷</strong> — 프린트해도 깔끔</div></div>
+      </div>
+    </div>
+    <div class="sample-right">
+      <div class="pdf-mock">
+        <div class="pdf-header">
+          <div class="pdf-logo">플랜팡</div>
+          <div class="pdf-title-area">
+            <div class="pdf-title">발리 여행 일정</div>
+            <div class="pdf-sub">커플 · 힐링/휴양 · 4박5일</div>
+          </div>
+        </div>
+        <div class="pdf-body">
+          <div class="pdf-dest-row">
+            <span class="pdf-dest-badge">발리 🌴</span>
+            <span class="pdf-dest-text">2025년 여름 · 4박 5일</span>
+          </div>
+          <div class="pdf-day">
+            <div class="pdf-day-title">DAY 1 · 도착 & 우붓 탐방</div>
+            <div class="pdf-item">
+              <span class="pdf-time">오전</span>
+              <span class="pdf-act"><strong>응우라라이 국제공항</strong> 도착, 택시로 우붓 이동 (약 1시간)</span>
+            </div>
+            <div class="pdf-item">
+              <span class="pdf-time">오후</span>
+              <span class="pdf-act"><strong>우붓 왕궁 & 시장</strong> 산책, 로컬 와룽에서 나시고랭 점심</span>
+            </div>
+            <div class="pdf-item">
+              <span class="pdf-time">저녁</span>
+              <span class="pdf-act"><strong>캠프한 우붓</strong> 루프탑 레스토랑 석양 디너</span>
+            </div>
+          </div>
+          <div class="pdf-day">
+            <div class="pdf-day-title">DAY 2 · 뜨갈랄랑 & 스파</div>
+            <div class="pdf-item">
+              <span class="pdf-time">오전</span>
+              <span class="pdf-act"><strong>뜨갈랄랑 계단식 논</strong> — 일출 직후 방문 추천</span>
+            </div>
+            <div class="pdf-item">
+              <span class="pdf-time">오후</span>
+              <span class="pdf-act"><strong>Karsa Spa</strong> 발리니즈 마사지 2시간</span>
+            </div>
+          </div>
+          <div class="pdf-tip">
+            <div class="pdf-tip-title">✦ 꿀팁</div>
+            <div class="pdf-tip-text">우붓 시장은 아침 8시 이전이 가장 한산해요. 고프로 방수팩 꼭 챙기세요!</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- REVIEWS -->
+<section class="reviews-section reveal">
+  <div class="section-label">Reviews</div>
+  <div class="section-title" style="margin-bottom:32px">벌써 써본<br><span>사람들</span></div>
+  <div class="reviews-grid">
+    <div class="review-card">
+      <div class="review-stars">★★★★★</div>
+      <p class="review-text">"여행사 다녀온 것보다 낫네요. 동선도 딱 맞고 꿀팁도 진짜 유용했어요. 1만원인데 이 퀄리티면 그냥 이득"</p>
+      <div class="review-author">김지은</div>
+      <div class="review-meta">발리 4박5일 커플여행</div>
+    </div>
+    <div class="review-card">
+      <div class="review-stars">★★★★★</div>
+      <p class="review-text">"방콕 맛집 위주로 뽑았는데 진짜 로컬 맛집 다 나오더라고요. 친구들이랑 그냥 이 일정대로 다녔는데 최고였음"</p>
+      <div class="review-author">박현우</div>
+      <div class="review-meta">방콕 5박6일 친구여행</div>
+    </div>
+    <div class="review-card">
+      <div class="review-stars">★★★★☆</div>
+      <p class="review-text">"아이 데리고 제주 가는 거라 특별 요청 넣었는데 애기 눈높이 맞춰서 잘 만들어줬어요. 가족 여행에 강추!"</p>
+      <div class="review-author">이수현</div>
+      <div class="review-meta">제주 3박4일 가족여행</div>
+    </div>
+  </div>
+</section>
+
+<!-- FAQ -->
+<section class="faq-section reveal">
+  <div class="section-label">FAQ</div>
+  <div class="section-title" style="margin-bottom:32px">자주 묻는<br><span>질문</span></div>
+
+  <div class="faq-item" onclick="toggleFaq(this)">
+    <div class="faq-q">결제하면 언제 PDF를 받을 수 있나요? <span class="faq-icon">+</span></div>
+    <div class="faq-a">결제 완료 즉시 AI가 일정을 생성하고, 입력하신 이메일로 자동 발송됩니다. 보통 2~3분 내로 받아보실 수 있어요.</div>
+  </div>
+  <div class="faq-item" onclick="toggleFaq(this)">
+    <div class="faq-q">원하는 여행지가 목록에 없어요 <span class="faq-icon">+</span></div>
+    <div class="faq-a">특별 요청 칸에 원하는 여행지를 직접 입력하시면 됩니다. 전 세계 어디든 가능해요!</div>
+  </div>
+  <div class="faq-item" onclick="toggleFaq(this)">
+    <div class="faq-q">환불이 가능한가요? <span class="faq-icon">+</span></div>
+    <div class="faq-a">PDF 생성 전에는 100% 환불 가능합니다. PDF가 발급된 이후에는 디지털 콘텐츠 특성상 환불이 어렵습니다.</div>
+  </div>
+  <div class="faq-item" onclick="toggleFaq(this)">
+    <div class="faq-q">PDF를 다시 받을 수 있나요? <span class="faq-icon">+</span></div>
+    <div class="faq-a">네! 이메일이 안 왔다면 스팸함을 먼저 확인해주세요. 그래도 없으면 카카오톡 채널로 문의 주시면 재발송해드려요.</div>
+  </div>
+  <div class="faq-item" onclick="toggleFaq(this)">
+    <div class="faq-q">일정이 맘에 안 들면 어떻게 하죠? <span class="faq-icon">+</span></div>
+    <div class="faq-a">카카오톡 채널로 문의해주시면 수정 사항을 반영해서 재생성해드려요. 완전히 만족하실 때까지 도와드립니다.</div>
+  </div>
+</section>
+
+<!-- FOOTER CTA -->
+<div class="footer-cta reveal">
+  <h2>지금 바로<br><span>팡!</span> 뽑아봐요</h2>
+  <p>고민하는 시간이 더 아깝잖아요</p>
+  <a href="#form" class="hero-btn" style="display:inline-flex">🎰 일정 뽑기 — 하루 ₩2,000</a>
+</div>
+
+<footer>
+  <span class="footer-logo">플랜팡</span>
+  <span>© 2025 PlanPang. AI 여행일정 서비스</span>
+  <span>카카오톡 채널: @플랜팡</span>
+</footer>
+
+<script>
+/* 대륙별 도시 데이터 */
+const cityData = {
+  동남아: [
+    {val:'발리', label:'🌴 발리'},{val:'방콕', label:'🏯 방콕'},{val:'나트랑', label:'🌅 나트랑'},
+    {val:'다낭', label:'🌊 다낭'},{val:'코타키나발루', label:'🐠 코타키나발루'},{val:'싱가포르', label:'🏙 싱가포르'},
+    {val:'세부', label:'🤿 세부'},{val:'푸켓', label:'🏖 푸켓'},{val:'호이안', label:'🏮 호이안'},{val:'하노이', label:'🛵 하노이'},
+  ],
+  동아시아: [
+    {val:'도쿄', label:'🗼 도쿄'},{val:'오사카', label:'🍜 오사카'},{val:'교토', label:'⛩ 교토'},
+    {val:'후쿠오카', label:'🍱 후쿠오카'},{val:'타이베이', label:'🧋 타이베이'},{val:'홍콩', label:'🌃 홍콩'},
+    {val:'상하이', label:'🏮 상하이'},{val:'베이징', label:'🏯 베이징'},
+  ],
+  유럽: [
+    {val:'파리', label:'🗺 파리'},{val:'로마', label:'🏛 로마'},{val:'바르셀로나', label:'🎨 바르셀로나'},
+    {val:'런던', label:'☂ 런던'},{val:'프라하', label:'🏰 프라하'},{val:'암스테르담', label:'🌷 암스테르담'},
+    {val:'두브로브니크', label:'🌊 두브로브니크'},{val:'그린델발트', label:'⛰ 그린델발트'},
+    {val:'밀라노', label:'👗 밀라노'},{val:'비엔나', label:'🎻 비엔나'},
+  ],
+};
+
+let selectedDests = [];
+
+document.getElementById('continent-group').querySelectorAll('.chip').forEach(c => {
+  c.onclick = () => {
+    document.getElementById('continent-group').querySelectorAll('.chip').forEach(x => x.classList.remove('on'));
+    c.classList.add('on');
+    selectedDests = [];
+    renderCities(c.dataset.val);
+  };
+});
+
+function renderCities(continent) {
+  const wrap = document.getElementById('city-wrap');
+  const group = document.getElementById('dest-group');
+  const cities = cityData[continent] || [];
+  group.innerHTML = cities.map(c => '<button class="chip" data-val="' + c.val + '">' + c.label + '</button>').join('');
+  wrap.style.display = 'block';
+  group.querySelectorAll('.chip').forEach(c => {
+    c.onclick = () => {
+      c.classList.toggle('on');
+      if (c.classList.contains('on')) {
+        selectedDests.push(c.dataset.val);
+      } else {
+        selectedDests = selectedDests.filter(v => v !== c.dataset.val);
+      }
+    };
+  });
+}
+
+function makeChipGroup(groupId, single=true) {
+  document.getElementById(groupId)?.querySelectorAll('.chip').forEach(c => {
+    c.onclick = () => {
+      if (single) document.getElementById(groupId).querySelectorAll('.chip').forEach(x => x.classList.remove('on'));
+      c.classList.toggle('on');
+    };
+  });
+}
+makeChipGroup('group-group');
+
+document.getElementById('style-group')?.querySelectorAll('.style-card').forEach(c => {
+  c.onclick = () => { c.classList.toggle('on'); };
+});
+
+/* 기간 슬라이더 */
+const slider = document.getElementById('nights');
+const display = document.getElementById('nights-display');
+
+function updatePrice() {
+  const days = parseInt(slider.value);
+  const price = days * 2000;
+  const priceStr = '₩' + price.toLocaleString();
+  display.textContent = days + '일';
+  document.getElementById('price-total').textContent = priceStr;
+  document.querySelector('.pc-formula').textContent = days + '일 × ₩2,000';
+  document.getElementById('btn-price').textContent = priceStr;
+  document.getElementById('form-badge').textContent = priceStr + ' · 즉시 발급';
+  document.getElementById('guide-days').textContent = '수량 ' + days;
+}
+
+slider.oninput = updatePrice;
+updatePrice();
+
+/* FAQ */
+function toggleFaq(el) {
+  const isOpen = el.classList.contains('open');
+  document.querySelectorAll('.faq-item').forEach(f => f.classList.remove('open'));
+  if (!isOpen) el.classList.add('open');
+}
+
+/* 결제 핸들러 */
+async function handlePay() {
+  const dest = selectedDests.join(', ');
+  const style = Array.from(document.querySelectorAll('#style-group .style-card.on')).map(c => c.dataset.val).join(', ');
+  const group = document.querySelector('#group-group .chip.on')?.dataset.val;
+  const email = document.getElementById('email').value.trim();
+  const days = parseInt(document.getElementById('nights').value);
+  const memo = document.getElementById('memo').value.trim();
+
+  if (!dest) { alert('여행지를 1개 이상 선택해주세요!'); return; }
+  if (!style) { alert('여행 스타일을 1개 이상 선택해주세요!'); return; }
+  if (!group) { alert('누구와 가는지 선택해주세요!'); return; }
+  if (!email || !email.includes('@')) { alert('이메일을 올바르게 입력해주세요!'); return; }
+
+  const btn = document.getElementById('pay-btn');
+  const btnText = document.getElementById('pay-btn-text');
+  btn.disabled = true;
+  btnText.innerHTML = '⏳ 잠깐만요...';
+
+  try {
+    // 서버에 주문 사전 등록
+    const res = await fetch('https://planpang-server-production.up.railway.app/api/order/create', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ dest, style, group, days, memo, email })
+    });
+
+    const data = await res.json();
+
+    if (!res.ok) {
+      alert(data.error || '주문 등록 중 오류가 발생했어요. 다시 시도해주세요.');
+      return;
+    }
+
+    // orderId 로컬 저장 (결제 완료 후 확인용)
+    localStorage.setItem('planpang_orderId', data.orderId);
+    localStorage.setItem('planpang_email', email);
+
+    // 토스 결제 페이지로 이동
+    window.open('https://buy.tosspayments.com/products/HRBnSphG6A?shopId=prbVBltVIxzU', '_blank');
+
+  } catch (err) {
+    alert('서버 연결에 실패했어요. 잠시 후 다시 시도해주세요.');
+    console.error(err);
+  } finally {
+    btn.disabled = false;
+    btnText.innerHTML = '💳 <span id="btn-price">' + (days * 2000).toLocaleString() + '</span>원 결제하러 가기';
+  }
+}
+
+/* Reveal on scroll */
+const observer = new IntersectionObserver((entries) => {
+  entries.forEach(e => { if (e.isIntersecting) e.target.classList.add('visible'); });
+}, { threshold: 0.1 });
+document.querySelectorAll('.reveal').forEach(el => observer.observe(el));
+</script>
+</body>
+</html>
