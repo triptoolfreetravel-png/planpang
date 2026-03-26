@@ -356,6 +356,42 @@ nav {
 .email-input:focus { border-color: var(--pop); }
 .email-input::placeholder { color: var(--muted2); }
 
+.date-row {
+  display: flex; align-items: center; gap: 10px;
+}
+.date-box { flex: 1; }
+.date-label {
+  font-size: 11px; font-weight: 700; color: var(--muted);
+  letter-spacing: 0.5px; margin-bottom: 6px;
+}
+.date-input {
+  width: 100%;
+  background: var(--bg3);
+  border: 1.5px solid var(--border2);
+  border-radius: var(--r);
+  padding: 12px 14px;
+  font-size: 14px; color: var(--text);
+  font-family: 'Pretendard', sans-serif;
+  outline: none; cursor: pointer;
+  transition: border-color 0.15s;
+  -webkit-appearance: none;
+  color-scheme: dark;
+}
+.date-input:focus { border-color: var(--pop); }
+.date-input::-webkit-calendar-picker-indicator {
+  filter: invert(1) opacity(0.5);
+  cursor: pointer;
+}
+.date-arrow {
+  color: var(--muted2); font-size: 16px;
+  flex-shrink: 0; margin-top: 20px;
+}
+.date-result { margin-top: 10px; }
+.date-hint {
+  font-size: 12px; color: var(--muted2);
+  margin-top: 10px; text-align: center;
+}
+
 .price-calc {
   display: flex; align-items: center; gap: 8px;
   margin-top: 12px;
@@ -675,16 +711,26 @@ footer {
       </div>
 
       <div class="field">
-        <label class="field-label">📅 며칠 일정이에요?</label>
-        <div class="nights-wrap">
-          <input type="range" id="nights" min="1" max="15" value="5" step="1">
-          <span class="nights-val" id="nights-display">5일</span>
+        <label class="field-label">📅 여행 기간</label>
+        <div class="date-row">
+          <div class="date-box">
+            <div class="date-label">출발일</div>
+            <input type="date" id="start-date" class="date-input">
+          </div>
+          <div class="date-arrow">→</div>
+          <div class="date-box">
+            <div class="date-label">도착일</div>
+            <input type="date" id="end-date" class="date-input">
+          </div>
         </div>
-        <div class="price-calc" id="price-calc">
-          <span class="pc-formula">5일 × ₩2,000</span>
-          <span class="pc-eq">=</span>
-          <span class="pc-total" id="price-total">₩10,000</span>
+        <div class="date-result" id="date-result" style="display:none;">
+          <div class="price-calc" id="price-calc">
+            <span class="pc-formula" id="pc-formula">5일 × ₩2,000</span>
+            <span class="pc-eq">=</span>
+            <span class="pc-total" id="price-total">₩10,000</span>
+          </div>
         </div>
+        <div class="date-hint" id="date-hint">출발일과 도착일을 선택하면 가격이 계산돼요</div>
       </div>
 
       <div class="field">
@@ -943,23 +989,73 @@ document.getElementById('style-group')?.querySelectorAll('.style-card').forEach(
   c.onclick = () => { c.classList.toggle('on'); };
 });
 
-/* 기간 슬라이더 */
-const slider = document.getElementById('nights');
-const display = document.getElementById('nights-display');
+/* 날짜 선택 */
+const startInput = document.getElementById('start-date');
+const endInput = document.getElementById('end-date');
+
+// 오늘 날짜를 최소값으로 설정
+const today = new Date().toISOString().split('T')[0];
+startInput.min = today;
+endInput.min = today;
+
+// 기본값: 오늘부터 4박5일
+const defaultStart = new Date();
+const defaultEnd = new Date();
+defaultEnd.setDate(defaultEnd.getDate() + 4);
+startInput.value = defaultStart.toISOString().split('T')[0];
+endInput.value = defaultEnd.toISOString().split('T')[0];
+
+function getDays() {
+  if (!startInput.value || !endInput.value) return 0;
+  const s = new Date(startInput.value);
+  const e = new Date(endInput.value);
+  const diff = Math.round((e - s) / (1000 * 60 * 60 * 24));
+  return diff > 0 ? diff + 1 : 0;
+}
+
+function formatDate(dateStr) {
+  const d = new Date(dateStr);
+  return (d.getMonth() + 1) + '월 ' + d.getDate() + '일';
+}
 
 function updatePrice() {
-  const days = parseInt(slider.value);
+  const days = getDays();
+  const resultBox = document.getElementById('date-result');
+  const hint = document.getElementById('date-hint');
+
+  if (days <= 0) {
+    resultBox.style.display = 'none';
+    hint.style.display = 'block';
+    hint.textContent = '도착일은 출발일보다 늦어야 해요';
+    document.getElementById('btn-price').textContent = '날짜를 선택해주세요';
+    document.getElementById('form-badge').textContent = '날짜 선택 필요';
+    document.getElementById('guide-days').textContent = '수량 ?';
+    return;
+  }
+
   const price = days * 2000;
   const priceStr = '₩' + price.toLocaleString();
-  display.textContent = days + '일';
+
+  resultBox.style.display = 'block';
+  hint.style.display = 'none';
   document.getElementById('price-total').textContent = priceStr;
-  document.querySelector('.pc-formula').textContent = days + '일 × ₩2,000';
+  document.getElementById('pc-formula').textContent = days + '일 × ₩2,000';
   document.getElementById('btn-price').textContent = priceStr;
   document.getElementById('form-badge').textContent = priceStr + ' · 즉시 발급';
   document.getElementById('guide-days').textContent = '수량 ' + days;
 }
 
-slider.oninput = updatePrice;
+startInput.oninput = () => {
+  // 출발일 변경시 도착일 최소값도 업데이트
+  endInput.min = startInput.value;
+  if (endInput.value && endInput.value <= startInput.value) {
+    const newEnd = new Date(startInput.value);
+    newEnd.setDate(newEnd.getDate() + 1);
+    endInput.value = newEnd.toISOString().split('T')[0];
+  }
+  updatePrice();
+};
+endInput.oninput = updatePrice;
 updatePrice();
 
 /* FAQ */
@@ -975,7 +1071,10 @@ async function handlePay() {
   const style = Array.from(document.querySelectorAll('#style-group .style-card.on')).map(c => c.dataset.val).join(', ');
   const group = document.querySelector('#group-group .chip.on')?.dataset.val;
   const email = document.getElementById('email').value.trim();
-  const days = parseInt(document.getElementById('nights').value);
+  const days = getDays();
+  const startDate = document.getElementById('start-date').value;
+  const endDate = document.getElementById('end-date').value;
+  if (days <= 0) { alert('여행 날짜를 올바르게 선택해주세요!'); return; }
   const memo = document.getElementById('memo').value.trim();
 
   if (!dest) { alert('여행지를 1개 이상 선택해주세요!'); return; }
@@ -993,7 +1092,7 @@ async function handlePay() {
     const res = await fetch('https://planpang-server-production.up.railway.app/api/order/create', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ dest, style, group, days, memo, email })
+      body: JSON.stringify({ dest, style, group, days, startDate, endDate, memo, email })
     });
 
     const data = await res.json();
