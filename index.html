@@ -1010,7 +1010,7 @@ function getDays() {
   const s = new Date(startInput.value);
   const e = new Date(endInput.value);
   const diff = Math.round((e - s) / (1000 * 60 * 60 * 24));
-  return diff > 0 ? diff + 1 : 0;
+  return diff >= 0 ? diff + 1 : 0;
 }
 
 function formatDate(dateStr) {
@@ -1026,7 +1026,7 @@ function updatePrice() {
   if (days <= 0) {
     resultBox.style.display = 'none';
     hint.style.display = 'block';
-    hint.textContent = '도착일은 출발일보다 늦어야 해요';
+    hint.textContent = '도착일을 출발일보다 같거나 늦게 선택해주세요';
     document.getElementById('btn-price').textContent = '날짜를 선택해주세요';
     document.getElementById('form-badge').textContent = '날짜 선택 필요';
     document.getElementById('guide-days').textContent = '수량 ?';
@@ -1048,7 +1048,7 @@ function updatePrice() {
 startInput.oninput = () => {
   // 출발일 변경시 도착일 최소값도 업데이트
   endInput.min = startInput.value;
-  if (endInput.value && endInput.value <= startInput.value) {
+  if (endInput.value && endInput.value < startInput.value) {
     const newEnd = new Date(startInput.value);
     newEnd.setDate(newEnd.getDate() + 1);
     endInput.value = newEnd.toISOString().split('T')[0];
